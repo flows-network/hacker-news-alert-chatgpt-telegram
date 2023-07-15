@@ -13,12 +13,13 @@ use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
+use slack_flows::send_message_to_channel;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("51 * * * *"),
+        String::from("57 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -131,6 +132,7 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();
 
+    send_message_to_channel("ik8", "ch_err", msg.clone()).await;
     let params = serde_json::json!({
       "chat_id": chat_id,
       "text": msg,

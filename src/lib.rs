@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("49 * * * *"),
+        String::from("33 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -97,13 +97,17 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     let body = json!({ "chat_id": format!("@{}", username) });
 
     let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
+    let chat_id = 2142063265;
 
     match result.get("id") {
-        Some(id) => log::info!("result: {}", id.to_string()),
-        None => log::info!("id not found"),
+        Some(id) => {log::info!("result: {}", id.to_string());
+        let _ = tele.send_message(ChatId(chat_id),  id.to_string());
+        }
+        None => {log::info!("id not found");
+        let _ = tele.send_message(ChatId(chat_id), "id not found");
+        }
     };
 
-    let chat_id = 2142063265;
     let _ = tele.send_message(ChatId(chat_id), "hi");
 
     // let chat_id = result

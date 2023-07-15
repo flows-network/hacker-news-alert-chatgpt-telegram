@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("09 * * * *"),
+        String::from("18 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -30,7 +30,7 @@ async fn callback(_: Vec<u8>) {
     logger::init();
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let now = SystemTime::now();
-    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
+    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
 
     let mut writer = Vec::new();
@@ -157,6 +157,11 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     let params = serde_json::json!({
       "chat_id": chat_id,
       "text": msg,
+      "parse_mode": "Markdown"
+    });
+    let params = serde_json::json!({
+      "chat_id": chat_id,
+      "text": "placeholder message",
       "parse_mode": "Markdown"
     });
 

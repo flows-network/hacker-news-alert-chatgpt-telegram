@@ -13,13 +13,10 @@ use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
-use slack_flows::send_message_to_channel;
 
-#[no_mangle]
-#[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("7 * * * *"),
+        String::from("25 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -30,51 +27,20 @@ async fn callback(_load: Vec<u8>) {
     println!("{:?}", String::from_utf8_lossy(&_load).to_string());
     dotenv().ok();
     logger::init();
+
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
-    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let chat_id = 2142063265;
+    let now = SystemTime::now();
+    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
+    let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
 
-    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
-
-    let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();
-    // let params = serde_json::json!({
-    //   "chat_id": chat_id,
-    //   "text": msg,
-    //   "parse_mode": "Markdown"
-    // });
-    let params = serde_json::json!({
-      "chat_id": chat_id,
-      "text": "[placeholder message from flows](https://jaykchen.xyz)",
-      "parse_mode": "Markdown"
-    });
-
-    let body = serde_json::to_vec(&params).unwrap();
-
-    let _ = Request::new(&uri)
-        .method(POST)
-        .header("Content-Type", "application/json")
-        .header("Content-Length", &body.len())
-        .body(&body)
-        .send(&mut writer).unwrap();
-
-    send_message_to_channel("ik8", "ch_out", chat_id.to_string());
-
-    // let query = String::from_utf8_lossy(&keyword);
-    // logger::init();
-    // let keyword = query.as_ref();
-    // let now = SystemTime::now();
-    // let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
-    // let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
-
-    // let mut writer = Vec::new();
-    // if let Ok(_) = request::get(url, &mut writer) {
-    //     if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
-    //         for hit in search.hits {
-    //             let _ = send_message_wrapper(hit).await;
-    //         }
-    //     }
-    // }
+    if let Ok(_) = request::get(url, &mut writer) {
+        if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
+            for hit in search.hits {
+                let _ = send_message_wrapper(hit).await;
+            }
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -133,72 +99,70 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     // // let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
     let chat_id = 2142063265;
 
-    // // match result.get("id") {
-    // //     Some(id) => {
-    // //         log::info!("result: {}", id.to_string());
-    // //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
-    // //     }
-    // //     None => {
-    // //         log::info!("id not found");
-    // //         let _ = tele.send_message(ChatId(chat_id), "id not found");
-    // //     }
-    // // };
-
-    // let _ = tele.send_message(ChatId(chat_id), "hi");
-
-    // // let chat_id = result
-    // //     .get("id")
-    // //     .ok_or(anyhow::anyhow!("No 'id' field in the response"))?
-    // //     .as_i64()
-    // //     .ok_or(anyhow::anyhow!("Failed to convert 'id' to i64"))?;
-
-    // let title = &hit.title;
-    // let author = &hit.author;
-    // let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
-    // let mut inner_url = "".to_string();
-
-    // let _text = match &hit.url {
-    //     Some(u) => {
-    //         inner_url = u.clone();
-    //         get_page_text(u)
-    //             .await
-    //             .unwrap_or("failed to scrape text with hit url".to_string())
+    // match result.get("id") {
+    //     Some(id) => {
+    //         log::info!("result: {}", id.to_string());
+    //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
     //     }
-    //     None => get_page_text(&post)
-    //         .await
-    //         .unwrap_or("failed to scrape text with post url".to_string()),
+    //     None => {
+    //         log::info!("id not found");
+    //         let _ = tele.send_message(ChatId(chat_id), "id not found");
+    //     }
     // };
 
-    // let summary = if _text.split_whitespace().count() > 100 {
-    //     get_summary_truncated(&_text).await?
-    // } else {
-    //     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
-    // };
+    // let chat_id = result
+    //     .get("id")
+    //     .ok_or(anyhow::anyhow!("No 'id' field in the response"))?
+    //     .as_i64()
+    //     .ok_or(anyhow::anyhow!("Failed to convert 'id' to i64"))?;
 
-    // let source = if !inner_url.is_empty() {
-    //     format!("<{inner_url}|source>")
-    // } else {
-    //     "".to_string()
-    // };
+    let title = &hit.title;
+    let author = &hit.author;
+    let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
+    let mut inner_url = "".to_string();
 
-    // let msg = format!("- <{post}|*{title}*>\n{source} by {author}\n{summary}");
+    let _text = match &hit.url {
+        Some(u) => {
+            inner_url = u.clone();
+            get_page_text(u)
+                .await
+                .unwrap_or("failed to scrape text with hit url".to_string())
+        }
+        None => get_page_text(&post)
+            .await
+            .unwrap_or("failed to scrape text with post url".to_string()),
+    };
+
+    let summary = if _text.split_whitespace().count() > 100 {
+        get_summary_truncated(&_text).await?
+    } else {
+        format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
+    };
+
+    let source = if !inner_url.is_empty() {
+        format!("[source]({inner_url})")
+    } else {
+        "".to_string()
+    };
+
+    let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
     // let _ = tele.send_message(ChatId(chat_id), msg);
 
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
 
     let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();
-    // let params = serde_json::json!({
-    //   "chat_id": chat_id,
-    //   "text": msg,
-    //   "parse_mode": "Markdown"
-    // });
+    let params = serde_json::json!({
+        "chat_id": chat_id,
+        "text": "[placeholder message from flows](https://jaykchen.xyz)",
+        "parse_mode": "Markdown"
+    });
+    
     let params = serde_json::json!({
       "chat_id": chat_id,
-      "text": "[placeholder message from flows](https://jaykchen.xyz)",
+      "text": msg,
       "parse_mode": "Markdown"
     });
-
     let body = serde_json::to_vec(&params)?;
 
     let _ = Request::new(&uri)

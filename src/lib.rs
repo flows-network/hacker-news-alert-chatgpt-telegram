@@ -16,7 +16,7 @@ use web_scraper_flows::get_page_text;
 
 pub async fn run() {
     schedule_cron_job(
-        String::from("25 * * * *"),
+        String::from("28 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )

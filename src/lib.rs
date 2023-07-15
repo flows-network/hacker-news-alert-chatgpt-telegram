@@ -14,9 +14,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
 
+#[no_mangle]
+#[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("28 * * * *"),
+        String::from("30 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )

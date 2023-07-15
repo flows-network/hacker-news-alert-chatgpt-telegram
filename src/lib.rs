@@ -92,76 +92,76 @@ async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
 pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     logger::init();
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let tele = Telegram::new(telegram_token.clone());
-    let username = env::var("username").unwrap_or("jaykchen".to_string());
-    let body = serde_json::json!({ "chat_id": format!("@{}", username) });
+    // let tele = Telegram::new(telegram_token.clone());
+    // let username = env::var("username").unwrap_or("jaykchen".to_string());
+    // let body = serde_json::json!({ "chat_id": format!("@{}", username) });
 
-    // let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
+    // // let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
     let chat_id = 2142063265;
 
-    // match result.get("id") {
-    //     Some(id) => {
-    //         log::info!("result: {}", id.to_string());
-    //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
+    // // match result.get("id") {
+    // //     Some(id) => {
+    // //         log::info!("result: {}", id.to_string());
+    // //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
+    // //     }
+    // //     None => {
+    // //         log::info!("id not found");
+    // //         let _ = tele.send_message(ChatId(chat_id), "id not found");
+    // //     }
+    // // };
+
+    // let _ = tele.send_message(ChatId(chat_id), "hi");
+
+    // // let chat_id = result
+    // //     .get("id")
+    // //     .ok_or(anyhow::anyhow!("No 'id' field in the response"))?
+    // //     .as_i64()
+    // //     .ok_or(anyhow::anyhow!("Failed to convert 'id' to i64"))?;
+
+    // let title = &hit.title;
+    // let author = &hit.author;
+    // let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
+    // let mut inner_url = "".to_string();
+
+    // let _text = match &hit.url {
+    //     Some(u) => {
+    //         inner_url = u.clone();
+    //         get_page_text(u)
+    //             .await
+    //             .unwrap_or("failed to scrape text with hit url".to_string())
     //     }
-    //     None => {
-    //         log::info!("id not found");
-    //         let _ = tele.send_message(ChatId(chat_id), "id not found");
-    //     }
+    //     None => get_page_text(&post)
+    //         .await
+    //         .unwrap_or("failed to scrape text with post url".to_string()),
     // };
 
-    let _ = tele.send_message(ChatId(chat_id), "hi");
+    // let summary = if _text.split_whitespace().count() > 100 {
+    //     get_summary_truncated(&_text).await?
+    // } else {
+    //     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
+    // };
 
-    // let chat_id = result
-    //     .get("id")
-    //     .ok_or(anyhow::anyhow!("No 'id' field in the response"))?
-    //     .as_i64()
-    //     .ok_or(anyhow::anyhow!("Failed to convert 'id' to i64"))?;
+    // let source = if !inner_url.is_empty() {
+    //     format!("<{inner_url}|source>")
+    // } else {
+    //     "".to_string()
+    // };
 
-    let title = &hit.title;
-    let author = &hit.author;
-    let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
-    let mut inner_url = "".to_string();
-
-    let _text = match &hit.url {
-        Some(u) => {
-            inner_url = u.clone();
-            get_page_text(u)
-                .await
-                .unwrap_or("failed to scrape text with hit url".to_string())
-        }
-        None => get_page_text(&post)
-            .await
-            .unwrap_or("failed to scrape text with post url".to_string()),
-    };
-
-    let summary = if _text.split_whitespace().count() > 100 {
-        get_summary_truncated(&_text).await?
-    } else {
-        format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
-    };
-
-    let source = if !inner_url.is_empty() {
-        format!("<{inner_url}|source>")
-    } else {
-        "".to_string()
-    };
-
-    let msg = format!("- <{post}|*{title}*>\n{source} by {author}\n{summary}");
+    // let msg = format!("- <{post}|*{title}*>\n{source} by {author}\n{summary}");
     // let _ = tele.send_message(ChatId(chat_id), msg);
 
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
 
     let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();
+    // let params = serde_json::json!({
+    //   "chat_id": chat_id,
+    //   "text": msg,
+    //   "parse_mode": "Markdown"
+    // });
     let params = serde_json::json!({
       "chat_id": chat_id,
-      "text": msg,
-      "parse_mode": "Markdown"
-    });
-    let params = serde_json::json!({
-      "chat_id": chat_id,
-      "text": "placeholder message",
+      "text": "[placeholder message from flows](https://jaykchen.xyz)",
       "parse_mode": "Markdown"
     });
 

@@ -17,18 +17,15 @@ use web_scraper_flows::get_page_text;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
-    schedule_cron_job(
-        String::from("29 * * * *"),
-        String::from("cronjob scheduled"),
-        callback,
-    )
-    .await;
+    dotenv().ok();
+    let keyword = std::env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    schedule_cron_job(String::from("42 * * * *"), keyword, callback).await;
 }
 
-async fn callback(_: Vec<u8>) {
-    dotenv().ok();
+async fn callback(keyword: Vec<u8>) {
+    let query = String::from_utf8_lossy(&keyword);
     logger::init();
-    let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    let keyword = query.as_ref();
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");

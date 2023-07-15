@@ -1,14 +1,14 @@
 use anyhow;
 use dotenv::dotenv;
 use flowsnet_platform_sdk::logger;
-use http_req::request;
+use http_req::{request, request::Method::POST, request::Request, uri::Uri};
 use openai_flows::{
     chat::{ChatModel, ChatOptions},
     OpenAIFlows,
 };
 use schedule_flows::schedule_cron_job;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
@@ -28,7 +28,7 @@ pub async fn run() {
 async fn callback(_: Vec<u8>) {
     dotenv().ok();
     logger::init();
-    let keyword = std::env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
@@ -91,22 +91,24 @@ async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
 
 pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     logger::init();
-    let telegram_token = std::env::var("telegram_token").expect("Missing telegram_token");
-    let tele = Telegram::new(telegram_token);
-    let username = std::env::var("username").unwrap_or("jaykchen".to_string());
-    let body = json!({ "chat_id": format!("@{}", username) });
+    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
+    let tele = Telegram::new(telegram_token.clone());
+    let username = env::var("username").unwrap_or("jaykchen".to_string());
+    let body = serde_json::json!({ "chat_id": format!("@{}", username) });
 
-    let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
+    // let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
     let chat_id = 2142063265;
 
-    match result.get("id") {
-        Some(id) => {log::info!("result: {}", id.to_string());
-        let _ = tele.send_message(ChatId(chat_id),  id.to_string());
-        }
-        None => {log::info!("id not found");
-        let _ = tele.send_message(ChatId(chat_id), "id not found");
-        }
-    };
+    // match result.get("id") {
+    //     Some(id) => {
+    //         log::info!("result: {}", id.to_string());
+    //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
+    //     }
+    //     None => {
+    //         log::info!("id not found");
+    //         let _ = tele.send_message(ChatId(chat_id), "id not found");
+    //     }
+    // };
 
     let _ = tele.send_message(ChatId(chat_id), "hi");
 
@@ -146,7 +148,26 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     };
 
     let msg = format!("- <{post}|*{title}*>\n{source} by {author}\n{summary}");
-    let _ = tele.send_message(ChatId(chat_id), msg);
+    // let _ = tele.send_message(ChatId(chat_id), msg);
+
+    let uri = format!("https://api.telegram.org/bot{telegram_token}>/sendMessage");
+
+    let uri = Uri::try_from(uri.as_str()).unwrap();
+    let mut writer = Vec::new();
+    let params = serde_json::json!({
+      "chat_id": chat_id,
+      "text": msg,
+      "parse_mode": "Markdown"
+    });
+
+    let body = serde_json::to_vec(&params)?;
+
+    let _ = Request::new(&uri)
+        .method(POST)
+        .header("Content-Type", "application/json")
+        .header("Content-Length", &body.len())
+        .body(&body)
+        .send(&mut writer)?;
 
     Ok(())
 }

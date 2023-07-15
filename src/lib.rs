@@ -18,12 +18,19 @@ use slack_flows::send_message_to_channel;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
-    dotenv().ok();
-    let keyword = std::env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
-    schedule_cron_job(String::from("52 * * * *"), keyword, callback).await;
+    schedule_cron_job(
+        String::from("7 * * * *"),
+        String::from("cronjob scheduled"),
+        callback,
+    )
+    .await;
 }
 
-async fn callback(keyword: Vec<u8>) {
+async fn callback(_load: Vec<u8>) {
+    println!("{:?}", String::from_utf8_lossy(&_load).to_string());
+    dotenv().ok();
+    logger::init();
+    let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let chat_id = 2142063265;
 
@@ -53,21 +60,21 @@ async fn callback(keyword: Vec<u8>) {
 
     send_message_to_channel("ik8", "ch_out", chat_id.to_string());
 
-    let query = String::from_utf8_lossy(&keyword);
-    logger::init();
-    let keyword = query.as_ref();
-    let now = SystemTime::now();
-    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
-    let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
+    // let query = String::from_utf8_lossy(&keyword);
+    // logger::init();
+    // let keyword = query.as_ref();
+    // let now = SystemTime::now();
+    // let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
+    // let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
 
-    let mut writer = Vec::new();
-    if let Ok(_) = request::get(url, &mut writer) {
-        if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
-            for hit in search.hits {
-                let _ = send_message_wrapper(hit).await;
-            }
-        }
-    }
+    // let mut writer = Vec::new();
+    // if let Ok(_) = request::get(url, &mut writer) {
+    //     if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
+    //         for hit in search.hits {
+    //             let _ = send_message_wrapper(hit).await;
+    //         }
+    //     }
+    // }
 }
 
 #[derive(Deserialize)]

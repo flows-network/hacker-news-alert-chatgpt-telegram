@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("58 * * * *"),
+        String::from("09 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -150,7 +150,7 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
     let msg = format!("- <{post}|*{title}*>\n{source} by {author}\n{summary}");
     // let _ = tele.send_message(ChatId(chat_id), msg);
 
-    let uri = format!("https://api.telegram.org/bot{telegram_token}>/sendMessage");
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
 
     let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();

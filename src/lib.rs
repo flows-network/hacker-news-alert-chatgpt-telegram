@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("30 * * * *"),
+        String::from("51 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -32,7 +32,7 @@ async fn callback(_load: Vec<u8>) {
 
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let now = SystemTime::now();
-    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 10000;
+    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
 
     let mut writer = Vec::new();
@@ -92,31 +92,6 @@ async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
 }
 
 pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
-    logger::init();
-    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    // let tele = Telegram::new(telegram_token.clone());
-    // let username = env::var("username").unwrap_or("jaykchen".to_string());
-    // let body = serde_json::json!({ "chat_id": format!("@{}", username) });
-
-    // // let result: Value = tele.request(Method::GetChat, body.to_string().as_bytes())?;
-    let chat_id = 2142063265;
-
-    // match result.get("id") {
-    //     Some(id) => {
-    //         log::info!("result: {}", id.to_string());
-    //         let _ = tele.send_message(ChatId(chat_id), id.to_string());
-    //     }
-    //     None => {
-    //         log::info!("id not found");
-    //         let _ = tele.send_message(ChatId(chat_id), "id not found");
-    //     }
-    // };
-
-    // let chat_id = result
-    //     .get("id")
-    //     .ok_or(anyhow::anyhow!("No 'id' field in the response"))?
-    //     .as_i64()
-    //     .ok_or(anyhow::anyhow!("Failed to convert 'id' to i64"))?;
 
     let title = &hit.title;
     let author = &hit.author;
@@ -141,25 +116,21 @@ pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
         format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
     };
 
+    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
+    let chat_id = 2142063265;
+
     let source = if !inner_url.is_empty() {
         format!("[source]({inner_url})")
     } else {
         "".to_string()
     };
-
     let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
-    // let _ = tele.send_message(ChatId(chat_id), msg);
 
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
 
     let uri = Uri::try_from(uri.as_str()).unwrap();
     let mut writer = Vec::new();
-    let params = serde_json::json!({
-        "chat_id": chat_id,
-        "text": "[placeholder message from flows](https://jaykchen.xyz)",
-        "parse_mode": "Markdown"
-    });
-    
+
     let params = serde_json::json!({
       "chat_id": chat_id,
       "text": msg,

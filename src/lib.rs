@@ -35,6 +35,9 @@ async fn callback(_load: Vec<u8>) {
     let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
     let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);
 
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
+    let uri = Uri::try_from(uri.as_str()).unwrap();
+
     let mut writer = Vec::new();
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 18000;
@@ -59,7 +62,7 @@ async fn callback(_load: Vec<u8>) {
                         .unwrap_or("failed to scrape text with post url".to_string()),
                 };
                 let summary = if _text.split_whitespace().count() > 100 {
-                    get_summary_truncated(&_text).await.unwrap()
+                    get_summary_truncated(&_text).await.unwrap_or("unexpected summary generated".to_string())
                 } else {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
@@ -71,28 +74,24 @@ async fn callback(_load: Vec<u8>) {
                 let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
                 messages.push(msg);
             }
-        }
-    }
-
-    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
-    let uri = Uri::try_from(uri.as_str()).unwrap();
-
-    for msg in messages {
-        let params = serde_json::json!({
-          "chat_id": telegram_chat_id,
-          "text": msg,
-          "parse_mode": "Markdown"
-        });
-        let body = serde_json::to_vec(&params).unwrap();
-        match Request::new(&uri)
-            .method(POST)
-            .header("Content-Type", "application/json")
-            .header("Content-Length", &body.len())
-            .body(&body)
-            .send(&mut writer)
-        {
-            Ok(_) => println!("ok"),
-            Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+            for msg in messages {
+                let params = serde_json::json!({
+                  "chat_id": telegram_chat_id,
+                  "text": msg,
+                  "parse_mode": "Markdown"
+                });
+                let body = serde_json::to_vec(&params).unwrap();
+                match Request::new(&uri)
+                    .method(POST)
+                    .header("Content-Type", "application/json")
+                    .header("Content-Length", &body.len())
+                    .body(&body)
+                    .send(&mut writer)
+                {
+                    Ok(_) => println!("ok"),
+                    Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+                }
+            }
         }
     }
 }

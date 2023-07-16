@@ -17,12 +17,18 @@ use web_scraper_flows::get_page_text;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
-    dotenv().ok();
-    let keyword = std::env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
-    schedule_cron_job(String::from("59 * * * *"), keyword, callback).await;
+    schedule_cron_job(
+        String::from("3 * * * *"),
+        String::from("cronjob scheduled"),
+        callback,
+    )
+    .await;
 }
 
-async fn callback(keyword: Vec<u8>) {
+async fn callback(_load: Vec<u8>) {
+    dotenv().ok();
+    logger::init();
+
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let chat_id = 2142063265;
 
@@ -48,8 +54,9 @@ async fn callback(keyword: Vec<u8>) {
         .header("Content-Type", "application/json")
         .header("Content-Length", &body.len())
         .body(&body)
-        .send(&mut writer).unwrap();
-        let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+        .send(&mut writer)
+        .unwrap();
+    let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
     let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);
@@ -60,25 +67,25 @@ async fn callback(keyword: Vec<u8>) {
     let mut writer = Vec::new();
 
     let params = serde_json::json!({
-        "chat_id": telegram_chat_id,
-        "text": "blank test",
-        "parse_mode": "Markdown"
-      });
-      match serde_json::to_vec(&params) {
-          Ok(body) => {
-              match Request::new(&uri)
-                  .method(POST)
-                  .header("Content-Type", "application/json")
-                  .header("Content-Length", &body.len())
-                  .body(&body)
-                  .send(&mut writer)
-              {
-                  Ok(_) => println!("ok"),
-                  Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
-              }
-          }
-          Err(_e) => log::debug!("{}", "Failed to convert params"),
-      }
+      "chat_id": telegram_chat_id,
+      "text": "blank test",
+      "parse_mode": "Markdown"
+    });
+    match serde_json::to_vec(&params) {
+        Ok(body) => {
+            match Request::new(&uri)
+                .method(POST)
+                .header("Content-Type", "application/json")
+                .header("Content-Length", &body.len())
+                .body(&body)
+                .send(&mut writer)
+            {
+                Ok(_) => println!("ok"),
+                Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+            }
+        }
+        Err(_e) => log::debug!("{}", "Failed to convert params"),
+    }
 
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;

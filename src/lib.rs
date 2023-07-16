@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("37 * * * *"),
+        String::from("47 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -33,13 +33,33 @@ async fn callback(_load: Vec<u8>) {
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
     let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);
-    let tele = Telegram::new(telegram_token);
-    let _ = tele.send_message(ChatId(telegram_chat_id), "blank test");
 
-    // let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
-    // let uri = Uri::try_from(uri.as_str()).unwrap();
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
+    let uri = Uri::try_from(uri.as_str()).unwrap();
 
     let mut writer = Vec::new();
+
+    let params = serde_json::json!({
+        "chat_id": telegram_chat_id,
+        "text": "blank test",
+        "parse_mode": "Markdown"
+      });
+      match serde_json::to_vec(&params) {
+          Ok(body) => {
+              match Request::new(&uri)
+                  .method(POST)
+                  .header("Content-Type", "application/json")
+                  .header("Content-Length", &body.len())
+                  .body(&body)
+                  .send(&mut writer)
+              {
+                  Ok(_) => println!("ok"),
+                  Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+              }
+          }
+          Err(_e) => log::debug!("{}", "Failed to convert params"),
+      }
+
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
@@ -78,28 +98,26 @@ async fn callback(_load: Vec<u8>) {
                 messages.push(msg);
             }
             for msg in messages {
-                let _ = tele.send_message(ChatId(telegram_chat_id), msg);
-
-                // let params = serde_json::json!({
-                //   "chat_id": telegram_chat_id,
-                //   "text": msg,
-                //   "parse_mode": "Markdown"
-                // });
-                // match serde_json::to_vec(&params) {
-                //     Ok(body) => {
-                //         match Request::new(&uri)
-                //             .method(POST)
-                //             .header("Content-Type", "application/json")
-                //             .header("Content-Length", &body.len())
-                //             .body(&body)
-                //             .send(&mut writer)
-                //         {
-                //             Ok(_) => println!("ok"),
-                //             Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
-                //         }
-                //     }
-                //     Err(_e) => log::debug!("{}", "Failed to convert params"),
-                // }
+                let params = serde_json::json!({
+                  "chat_id": telegram_chat_id,
+                  "text": msg,
+                  "parse_mode": "Markdown"
+                });
+                match serde_json::to_vec(&params) {
+                    Ok(body) => {
+                        match Request::new(&uri)
+                            .method(POST)
+                            .header("Content-Type", "application/json")
+                            .header("Content-Length", &body.len())
+                            .body(&body)
+                            .send(&mut writer)
+                        {
+                            Ok(_) => println!("ok"),
+                            Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+                        }
+                    }
+                    Err(_e) => log::debug!("{}", "Failed to convert params"),
+                }
             }
         }
     }

@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("26 * * * *"),
+        String::from("38 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -43,6 +43,7 @@ async fn callback(_load: Vec<u8>) {
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
+            let mut messages = vec!["fake first news".to_string()];
             for hit in search.hits {
                 let title = &hit.title;
                 let author = &hit.author;
@@ -62,7 +63,7 @@ async fn callback(_load: Vec<u8>) {
                 let summary = if _text.split_whitespace().count() > 100 {
                     get_summary_truncated(&_text)
                         .await
-                        .unwrap_or("unexpected summary generated".to_string())
+                        .unwrap_or("no summary generated".to_string())
                 } else {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
@@ -72,6 +73,9 @@ async fn callback(_load: Vec<u8>) {
                     "".to_string()
                 };
                 let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
+                messages.push(msg);
+            }
+            for msg in messages {
                 let params = serde_json::json!({
                   "chat_id": telegram_chat_id,
                   "text": msg,

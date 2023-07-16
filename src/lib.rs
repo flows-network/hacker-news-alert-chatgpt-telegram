@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("7 * * * *"),
+        String::from("15 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -35,27 +35,27 @@ async fn callback(_load: Vec<u8>) {
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
 
     let uri = Uri::try_from(uri.as_str()).unwrap();
-    let mut writer = Vec::<u8>::new();
+    let mut writer = Vec::new();
     // let params = serde_json::json!({
     //   "chat_id": chat_id,
     //   "text": msg,
     //   "parse_mode": "Markdown"
     // });
-    // let params = serde_json::json!({
-    //   "chat_id": chat_id,
-    //   "text": "[placeholder message from flows](https://jaykchen.xyz)",
-    //   "parse_mode": "Markdown"
-    // });
+    let params = serde_json::json!({
+      "chat_id": chat_id,
+      "text": "[placeholder message from flows](https://jaykchen.xyz)",
+      "parse_mode": "Markdown"
+    });
 
-    // let body = serde_json::to_vec(&params).unwrap();
+    let body = serde_json::to_vec(&params).unwrap();
 
-    // let _ = Request::new(&uri)
-    //     .method(POST)
-    //     .header("Content-Type", "application/json")
-    //     .header("Content-Length", &body.len())
-    //     .body(&body)
-    //     .send(&mut writer)
-    //     .unwrap();
+    let _ = Request::new(&uri)
+        .method(POST)
+        .header("Content-Type", "application/json")
+        .header("Content-Length", &body.len())
+        .body(&body)
+        .send(&mut writer)
+        .unwrap();
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
@@ -64,6 +64,7 @@ async fn callback(_load: Vec<u8>) {
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
     let uri = Uri::try_from(uri.as_str()).unwrap();
 
+    let mut writer = Vec::new();
 
     let params = serde_json::json!({
       "chat_id": telegram_chat_id,
@@ -124,23 +125,26 @@ async fn callback(_load: Vec<u8>) {
                 messages.push(msg);
             }
             for msg in messages {
-
                 let params = serde_json::json!({
-                  "chat_id": chat_id,
-                  "text": "[placeholder message from flows](https://jaykchen.xyz)",
+                  "chat_id": telegram_chat_id,
+                  "text": msg,
                   "parse_mode": "Markdown"
                 });
-
-                let body = serde_json::to_vec(&params).unwrap();
-                let mut writer = Vec::<u8>::new();
-
-                let _ = Request::new(&uri)
-                    .method(POST)
-                    .header("Content-Type", "application/json")
-                    .header("Content-Length", &body.len())
-                    .body(&body)
-                    .send(&mut writer)
-                    .unwrap();
+                match serde_json::to_vec(&params) {
+                    Ok(body) => {
+                        match Request::new(&uri)
+                            .method(POST)
+                            .header("Content-Type", "application/json")
+                            .header("Content-Length", &body.len())
+                            .body(&body)
+                            .send(&mut writer)
+                        {
+                            Ok(_) => println!("ok"),
+                            Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+                        }
+                    }
+                    Err(_e) => log::debug!("{}", "Failed to convert params"),
+                }
             }
         }
     }

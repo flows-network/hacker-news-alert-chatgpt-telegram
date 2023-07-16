@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("29 * * * *"),
+        String::from("39 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -81,7 +81,7 @@ async fn callback(_load: Vec<u8>) {
                 let mut cache = Vec::new();
 
                 let params = serde_json::json!({
-                  "chat_id": telegram_chat_id,
+                  "chat_id": 2142063265,
                   "text": msg,
                   "parse_mode": "Markdown"
                 });

@@ -9,17 +9,17 @@ use openai_flows::{
 use schedule_flows::schedule_cron_job;
 use serde::Deserialize;
 use serde_json;
+use slack_flows::send_message_to_channel;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
-use slack_flows::send_message_to_channel;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("57 * * * *"),
+        String::from("23 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -32,16 +32,85 @@ async fn callback(_load: Vec<u8>) {
     logger::init();
 
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
+    let chat_id = 2142063265;
+
+    let mut writer = Vec::new();
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
+    let uri = Uri::try_from(uri.as_str()).unwrap();
+    let params = serde_json::json!({
+      "chat_id": chat_id,
+      "text": "start getting news",
+      "parse_mode": "text"
+    });
+    let body = serde_json::to_vec(&params).unwrap();
+    match Request::new(&uri)
+        .method(POST)
+        .header("Content-Type", "application/json")
+        .header("Content-Length", &body.len())
+        .body(&body)
+        .send(&mut writer)
+    {
+        Ok(_) => println!("ok"),
+        Err(_e) => log::debug!("{}", "Failed to send placeholder message"),
+    }
+
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
-
-    let mut writer = Vec::new();
+    let mut messages = vec!["fake first news".to_string()];
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
             for hit in search.hits {
-                let _ = send_message_wrapper(hit).await;
+                let title = &hit.title;
+                let author = &hit.author;
+                let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
+                let mut inner_url = "".to_string();
+                let _text = match &hit.url {
+                    Some(u) => {
+                        inner_url = u.clone();
+                        get_page_text(u)
+                            .await
+                            .unwrap_or("failed to scrape text with hit url".to_string())
+                    }
+                    None => get_page_text(&post)
+                        .await
+                        .unwrap_or("failed to scrape text with post url".to_string()),
+                };
+                let summary = if _text.split_whitespace().count() > 100 {
+                    get_summary_truncated(&_text).await.unwrap()
+                } else {
+                    format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
+                };
+                let source = if !inner_url.is_empty() {
+                    format!("[source]({inner_url})")
+                } else {
+                    "".to_string()
+                };
+                let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
+                messages.push(msg);
             }
+        }
+    }
+
+    // send_message_to_channel("ik8", "ch_err", msg.clone()).await;
+
+    for msg in messages {
+        let params = serde_json::json!({
+          "chat_id": chat_id,
+          "text": msg,
+          "parse_mode": "Markdown"
+        });
+        let body = serde_json::to_vec(&params).unwrap();
+        match Request::new(&uri)
+            .method(POST)
+            .header("Content-Type", "application/json")
+            .header("Content-Length", &body.len())
+            .body(&body)
+            .send(&mut writer)
+        {
+            Ok(_) => println!("ok"),
+            Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
         }
     }
 }
@@ -90,62 +159,4 @@ async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
         Ok(r) => Ok(r.choice),
         Err(_e) => Err(anyhow::Error::msg(_e.to_string())),
     }
-}
-
-pub async fn send_message_wrapper(hit: Hit) -> anyhow::Result<()> {
-
-    let title = &hit.title;
-    let author = &hit.author;
-    let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
-    let mut inner_url = "".to_string();
-
-    let _text = match &hit.url {
-        Some(u) => {
-            inner_url = u.clone();
-            get_page_text(u)
-                .await
-                .unwrap_or("failed to scrape text with hit url".to_string())
-        }
-        None => get_page_text(&post)
-            .await
-            .unwrap_or("failed to scrape text with post url".to_string()),
-    };
-
-    let summary = if _text.split_whitespace().count() > 100 {
-        get_summary_truncated(&_text).await?
-    } else {
-        format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
-    };
-
-    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let chat_id = 2142063265;
-
-    let source = if !inner_url.is_empty() {
-        format!("[source]({inner_url})")
-    } else {
-        "".to_string()
-    };
-    let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
-
-    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
-
-    let uri = Uri::try_from(uri.as_str()).unwrap();
-    let mut writer = Vec::new();
-
-    send_message_to_channel("ik8", "ch_err", msg.clone()).await;
-    let params = serde_json::json!({
-      "chat_id": chat_id,
-      "text": msg,
-      "parse_mode": "Markdown"
-    });
-    let body = serde_json::to_vec(&params)?;
-
-    let _ = Request::new(&uri)
-        .method(POST)
-        .header("Content-Type", "application/json")
-        .header("Content-Length", &body.len())
-        .body(&body)
-        .send(&mut writer)?;
-
-    Ok(())
 }

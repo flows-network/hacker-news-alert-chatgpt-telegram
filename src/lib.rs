@@ -17,19 +17,39 @@ use web_scraper_flows::get_page_text;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
-    schedule_cron_job(
-        String::from("47 * * * *"),
-        String::from("cronjob scheduled"),
-        callback,
-    )
-    .await;
+    dotenv().ok();
+    let keyword = std::env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    schedule_cron_job(String::from("59 * * * *"), keyword, callback).await;
 }
 
-async fn callback(_load: Vec<u8>) {
-    dotenv().ok();
-    logger::init();
+async fn callback(keyword: Vec<u8>) {
+    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
+    let chat_id = 2142063265;
 
-    let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
+
+    let uri = Uri::try_from(uri.as_str()).unwrap();
+    let mut writer = Vec::new();
+    // let params = serde_json::json!({
+    //   "chat_id": chat_id,
+    //   "text": msg,
+    //   "parse_mode": "Markdown"
+    // });
+    let params = serde_json::json!({
+      "chat_id": chat_id,
+      "text": "[placeholder message from flows](https://jaykchen.xyz)",
+      "parse_mode": "Markdown"
+    });
+
+    let body = serde_json::to_vec(&params).unwrap();
+
+    let _ = Request::new(&uri)
+        .method(POST)
+        .header("Content-Type", "application/json")
+        .header("Content-Length", &body.len())
+        .body(&body)
+        .send(&mut writer).unwrap();
+        let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
     let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
     let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);

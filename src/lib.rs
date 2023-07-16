@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("50 * * * *"),
+        String::from("26 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -26,7 +26,6 @@ pub async fn run() {
 }
 
 async fn callback(_load: Vec<u8>) {
-    println!("{:?}", String::from_utf8_lossy(&_load).to_string());
     dotenv().ok();
     logger::init();
 
@@ -40,7 +39,7 @@ async fn callback(_load: Vec<u8>) {
 
     let mut writer = Vec::new();
     let now = SystemTime::now();
-    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 18000;
+    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
@@ -114,7 +113,7 @@ pub struct Hit {
     pub created_at_i: i64,
 }
 
-async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
+async fn get_summary_truncated(inp: &str) -> Option<String> {
     let mut openai = OpenAIFlows::new();
     openai.set_retry_times(3);
 
@@ -139,7 +138,7 @@ async fn get_summary_truncated(inp: &str) -> anyhow::Result<String> {
     let question = format!("summarize this within 100 words: {news_body}");
 
     match openai.chat_completion(&chat_id, &question, &co).await {
-        Ok(r) => Ok(r.choice),
-        Err(_e) => Err(anyhow::Error::msg(_e.to_string())),
+        Ok(r) => Some(r.choice),
+        Err(_e) => None,
     }
 }

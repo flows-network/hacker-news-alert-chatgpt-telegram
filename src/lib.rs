@@ -9,7 +9,6 @@ use openai_flows::{
 use schedule_flows::schedule_cron_job;
 use serde::Deserialize;
 use serde_json;
-use slack_flows::send_message_to_channel;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tg_flows::{ChatId, Method, Telegram};
@@ -19,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("23 * * * *"),
+        String::from("33 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -33,32 +32,14 @@ async fn callback(_load: Vec<u8>) {
 
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let chat_id = 2142063265;
+    let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
+    let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);
 
     let mut writer = Vec::new();
-    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
-    let uri = Uri::try_from(uri.as_str()).unwrap();
-    let params = serde_json::json!({
-      "chat_id": chat_id,
-      "text": "start getting news",
-      "parse_mode": "text"
-    });
-    let body = serde_json::to_vec(&params).unwrap();
-    match Request::new(&uri)
-        .method(POST)
-        .header("Content-Type", "application/json")
-        .header("Content-Length", &body.len())
-        .body(&body)
-        .send(&mut writer)
-    {
-        Ok(_) => println!("ok"),
-        Err(_e) => log::debug!("{}", "Failed to send placeholder message"),
-    }
-
     let now = SystemTime::now();
-    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
+    let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 18000;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
-    let mut messages = vec!["fake first news".to_string()];
+    let mut messages = vec![];
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
             for hit in search.hits {
@@ -93,11 +74,12 @@ async fn callback(_load: Vec<u8>) {
         }
     }
 
-    // send_message_to_channel("ik8", "ch_err", msg.clone()).await;
+    let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
+    let uri = Uri::try_from(uri.as_str()).unwrap();
 
     for msg in messages {
         let params = serde_json::json!({
-          "chat_id": chat_id,
+          "chat_id": telegram_chat_id,
           "text": msg,
           "parse_mode": "Markdown"
         });

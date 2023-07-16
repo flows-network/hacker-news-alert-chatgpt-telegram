@@ -18,7 +18,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("40 * * * *"),
+        String::from("50 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -42,7 +42,6 @@ async fn callback(_load: Vec<u8>) {
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 18000;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
-    let mut messages = vec![];
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
             for hit in search.hits {
@@ -62,7 +61,9 @@ async fn callback(_load: Vec<u8>) {
                         .unwrap_or("failed to scrape text with post url".to_string()),
                 };
                 let summary = if _text.split_whitespace().count() > 100 {
-                    get_summary_truncated(&_text).await.unwrap_or("unexpected summary generated".to_string())
+                    get_summary_truncated(&_text)
+                        .await
+                        .unwrap_or("unexpected summary generated".to_string())
                 } else {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
@@ -72,24 +73,25 @@ async fn callback(_load: Vec<u8>) {
                     "".to_string()
                 };
                 let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
-                messages.push(msg);
-            }
-            for msg in messages {
                 let params = serde_json::json!({
                   "chat_id": telegram_chat_id,
                   "text": msg,
                   "parse_mode": "Markdown"
                 });
-                let body = serde_json::to_vec(&params).unwrap();
-                match Request::new(&uri)
-                    .method(POST)
-                    .header("Content-Type", "application/json")
-                    .header("Content-Length", &body.len())
-                    .body(&body)
-                    .send(&mut writer)
-                {
-                    Ok(_) => println!("ok"),
-                    Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+                match serde_json::to_vec(&params) {
+                    Ok(body) => {
+                        match Request::new(&uri)
+                            .method(POST)
+                            .header("Content-Type", "application/json")
+                            .header("Content-Length", &body.len())
+                            .body(&body)
+                            .send(&mut writer)
+                        {
+                            Ok(_) => println!("ok"),
+                            Err(_e) => log::debug!("{}", "Failed to send Telegram message"),
+                        }
+                    }
+                    Err(_e) => log::debug!("{}", "Failed to convert params"),
                 }
             }
         }

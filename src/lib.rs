@@ -17,7 +17,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("34 * * * *"),
+        String::from("38 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -69,7 +69,7 @@ async fn callback(_load: Vec<u8>) {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
                 let title_str = format!("[{title}]({post})");
-                let msg = format!("*{title_str}*\n{source} by {author}\n{summary}");
+                let msg = format!("{title_str}\n{source} by {author}\n{summary}");
                 let params = serde_json::json!({
                   "chat_id": telegram_chat_id,
                   "text": msg,

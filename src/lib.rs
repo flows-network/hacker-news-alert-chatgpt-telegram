@@ -1,4 +1,3 @@
-use anyhow;
 use dotenv::dotenv;
 use flowsnet_platform_sdk::logger;
 use http_req::{request, request::Method::POST, request::Request, uri::Uri};
@@ -7,18 +6,18 @@ use openai_flows::{
     OpenAIFlows,
 };
 use schedule_flows::schedule_cron_job;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tg_flows::{ChatId, Method, Telegram};
+// use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("39 * * * *"),
+        String::from("11 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -29,33 +28,31 @@ async fn callback(_load: Vec<u8>) {
     dotenv().ok();
     logger::init();
 
-    let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let chat_id = 2142063265;
-
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
-    let telegram_chat_id = env::var("telegram_chat_id").expect("Missing telegram_chat_id");
-    let telegram_chat_id = telegram_chat_id.parse::<i64>().unwrap_or(2142063265);
+    let telegram_chat_id;
+    match env::var("telegram_chat_id") {
+        Ok(id) => telegram_chat_id = id.parse::<i64>().unwrap_or(2142063265),
+        Err(_) => telegram_chat_id = 2142063265,
+    };
 
     let uri = format!("https://api.telegram.org/bot{telegram_token}/sendMessage");
     let uri = Uri::try_from(uri.as_str()).unwrap();
 
     let mut writer = Vec::new();
-
     let now = SystemTime::now();
     let dura = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - 3600;
     let url = format!("https://hn.algolia.com/api/v1/search_by_date?tags=story&query={keyword}&numericFilters=created_at_i>{dura}");
     if let Ok(_) = request::get(url, &mut writer) {
         if let Ok(search) = serde_json::from_slice::<Search>(&writer) {
-            let mut messages = vec!["fake first news".to_string()];
             for hit in search.hits {
                 let title = &hit.title;
                 let author = &hit.author;
                 let post = format!("https://news.ycombinator.com/item?id={}", &hit.object_id);
-                let mut inner_url = "".to_string();
+                let mut source = "".to_string();
                 let _text = match &hit.url {
                     Some(u) => {
-                        inner_url = u.clone();
+                        source = format!("[source]({u})");
                         get_page_text(u)
                             .await
                             .unwrap_or("failed to scrape text with hit url".to_string())
@@ -71,23 +68,16 @@ async fn callback(_load: Vec<u8>) {
                 } else {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
-                let source = if !inner_url.is_empty() {
-                    format!("[source]({inner_url})")
-                } else {
-                    "".to_string()
-                };
                 let msg = format!("- *[{title}]*({post})\n{source} by {author}\n{summary}");
-                let msg = "second fake message".to_string();
-                let mut cache = Vec::new();
-
+                let msg = convert(&msg);
                 let params = serde_json::json!({
-                  "chat_id": 2142063265,
+                  "chat_id": telegram_chat_id,
                   "text": msg,
                   "parse_mode": "Markdown"
                 });
 
                 let body = serde_json::to_vec(&params).unwrap();
-
+                let mut cache = Vec::new();
                 let _ = Request::new(&uri)
                     .method(POST)
                     .header("Content-Type", "application/json")
@@ -144,4 +134,32 @@ async fn get_summary_truncated(inp: &str) -> Option<String> {
         Ok(r) => Some(r.choice),
         Err(_e) => None,
     }
+}
+
+struct EscapeNonAscii;
+
+impl serde_json::ser::Formatter for EscapeNonAscii {
+    fn write_string_fragment<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> std::io::Result<()> {
+        for ch in fragment.chars() {
+            if ch.is_ascii() {
+                writer.write_all(ch.encode_utf8(&mut [0; 4]).as_bytes())?;
+            } else {
+                write!(writer, "\\u{:04x}", ch as u32)?;
+                // write!(writer, "?")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+pub fn convert(input: &str) -> String {
+    let mut writer = Vec::new();
+    let formatter = EscapeNonAscii;
+    let mut ser = serde_json::Serializer::with_formatter(&mut writer, formatter);
+    input.serialize(&mut ser).unwrap();
+    String::from_utf8(writer).unwrap()
 }

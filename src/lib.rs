@@ -17,7 +17,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("22 * * * *"),
+        String::from("28 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -69,8 +69,8 @@ async fn callback(_load: Vec<u8>) {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
                 let title_str = format!("<a href=\"{post}\">{title}</a>");
+                let title_str = format!("[{title}]({post})");
                 let msg = format!("{title_str})\n{source} by {author}\n{summary}");
-                // let msg = convert(&msg);
                 let params = serde_json::json!({
                   "chat_id": telegram_chat_id,
                   "text": msg,
@@ -137,30 +137,3 @@ async fn get_summary_truncated(inp: &str) -> Option<String> {
     }
 }
 
-struct EscapeNonAscii;
-
-impl serde_json::ser::Formatter for EscapeNonAscii {
-    fn write_string_fragment<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        fragment: &str,
-    ) -> std::io::Result<()> {
-        for ch in fragment.chars() {
-            if ch.is_ascii() {
-                writer.write_all(ch.encode_utf8(&mut [0; 4]).as_bytes())?;
-            } else {
-                write!(writer, "\\u{:04x}", ch as u32)?;
-                // write!(writer, "?")?;
-            }
-        }
-        Ok(())
-    }
-}
-
-pub fn convert(input: &str) -> String {
-    let mut writer = Vec::new();
-    let formatter = EscapeNonAscii;
-    let mut ser = serde_json::Serializer::with_formatter(&mut writer, formatter);
-    input.serialize(&mut ser).unwrap();
-    String::from_utf8(writer).unwrap()
-}

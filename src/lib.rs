@@ -17,7 +17,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("21 * * * *"),
+        String::from("30 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -53,7 +53,7 @@ async fn callback(_load: Vec<u8>) {
                 let mut source = "".to_string();
                 let _text = match &hit.url {
                     Some(u) => {
-                        source = format!("[source]({u})");
+                        source = format!("Source: {u}");
                         get_page_text(u)
                             .await
                             .unwrap_or("failed to scrape text with hit url".to_string())
@@ -69,17 +69,8 @@ async fn callback(_load: Vec<u8>) {
                 } else {
                     format!("Bot found minimal info on webpage to warrant a summary, please see the text on the page the Bot grabbed below if there are any, or use the link above to see the news at its source:\n{_text}")
                 };
-                let title_str = format!("[{title}]({post})");
-                let msg = format!("{title_str}\n{source} by {author}\n{summary}");
-                let params = serde_json::json!({
-                //   "chat_id": ChatId(telegram_chat_id),
-                  "text": msg,
-                  "parse_mode": "Markdown"
-                });
-
-                let body = serde_json::to_vec(&params).unwrap();
-                let body_string = String::from_utf8_lossy(&body); // May panic if `body` is not valid UTF-8
-                let _ = tele.send_message(ChatId(telegram_chat_id), body_string);
+                let msg = format!("{title}: {post}\n{source} by {author}\n{summary}");
+                let _ = tele.send_message(ChatId(telegram_chat_id), msg);
             }
         }
     }

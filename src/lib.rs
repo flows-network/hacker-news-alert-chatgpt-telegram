@@ -10,14 +10,14 @@ use serde::Deserialize;
 use serde_json;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
-// use tg_flows::{ChatId, Method, Telegram};
+use tg_flows::{ChatId, Method, Telegram};
 use web_scraper_flows::get_page_text;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("38 * * * *"),
+        String::from("30 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -30,6 +30,7 @@ async fn callback(_load: Vec<u8>) {
 
     let keyword = env::var("KEYWORD").unwrap_or("ChatGPT".to_string());
     let telegram_token = env::var("telegram_token").expect("Missing telegram_token");
+    let tele = Telegram::new(telegram_token.to_string());
     let telegram_chat_id;
     match env::var("telegram_chat_id") {
         Ok(id) => telegram_chat_id = id.parse::<i64>().unwrap_or(2142063265),
@@ -70,21 +71,23 @@ async fn callback(_load: Vec<u8>) {
                 };
                 let title_str = format!("[{title}]({post})");
                 let msg = format!("{title_str}\n{source} by {author}\n{summary}");
-                let params = serde_json::json!({
-                  "chat_id": telegram_chat_id,
-                  "text": msg,
-                  "parse_mode": "Markdown"
-                });
+                // let params = serde_json::json!({
+                //   "chat_id": telegram_chat_id,
+                //   "text": msg,
+                //   "parse_mode": "Markdown"
+                // });
 
-                let body = serde_json::to_vec(&params).unwrap();
-                let mut cache = Vec::new();
-                let _ = Request::new(&uri)
-                    .method(POST)
-                    .header("Content-Type", "application/json")
-                    .header("Content-Length", &body.len())
-                    .body(&body)
-                    .send(&mut cache)
-                    .unwrap();
+                // let body = serde_json::to_vec(&params).unwrap();
+
+                let _ = tele.send_message(ChatId(telegram_chat_id), msg);
+                // let mut cache = Vec::new();
+                // let _ = Request::new(&uri)
+                //     .method(POST)
+                //     .header("Content-Type", "application/json")
+                //     .header("Content-Length", &body.len())
+                //     .body(&body)
+                //     .send(&mut cache)
+                //     .unwrap();
             }
         }
     }

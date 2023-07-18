@@ -17,7 +17,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("14 * * * *"),
+        String::from("18 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )

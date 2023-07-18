@@ -17,7 +17,7 @@ use web_scraper_flows::get_page_text;
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() {
     schedule_cron_job(
-        String::from("11 * * * *"),
+        String::from("14 * * * *"),
         String::from("cronjob scheduled"),
         callback,
     )
@@ -78,8 +78,8 @@ async fn callback(_load: Vec<u8>) {
                 });
 
                 let body = serde_json::to_vec(&params).unwrap();
-
-                let _ = tele.send_message(ChatId(telegram_chat_id), msg);
+                let body_string = String::from_utf8_lossy(&body); // May panic if `body` is not valid UTF-8
+                let _ = tele.send_message(ChatId(telegram_chat_id), body_string);
             }
         }
     }

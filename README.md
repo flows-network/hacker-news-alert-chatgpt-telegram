@@ -1,4 +1,4 @@
-# <p align="center">HackerNews Alert</p>
+# <p align="center">Hacker News Alert</p>
 <p align="center">
   <a href="https://discord.gg/ccZn9ZMfFf">
     <img src="https://img.shields.io/badge/chat-Discord-7289DA?logo=discord" alt="flows.network Discord">

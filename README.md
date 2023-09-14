@@ -6,52 +6,84 @@
   <a href="https://twitter.com/flows_network">
     <img src="https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&amp;logoColor=white" alt="flows.network Twitter">
   </a>
-   <a href="https://flows.network/flow/new">
+   <a href="https://flows.network/flow/createByTemplate/hacker-news-chatgpt-telegram">
     <img src="https://img.shields.io/website?up_message=deploy&url=https%3A%2F%2Fflows.network%2Fflow%2Fnew" alt="Create a flow">
   </a>
 </p>
 
-[Deploy this function on flows.network](#deploy-the-hackernews-alert-app), and you will reveice HackerNews post alerts per hour according to your interests. 
+Feel hard to find the post that you're interested in tons of Hacker News posts? This telegram bot can help you monitor the Hacker News Post you're interested in and give you a summary generated ChatGPT as a telegram message. 
 
-<img width="658" alt="image" src="https://user-images.githubusercontent.com/45785633/227419393-d7a438f1-51c9-42bc-bb9a-bac1cd3e5581.png">
+<img width="658" alt="image" src="https://github.com/flows-network/hacker-news-alert-chatgpt-telegram/assets/45785633/82b4b004-e67d-4689-a0de-802c2db8adce">
 
-## Deploy the HackerNews Alert App
+## How it works
 
-To create this App, we will use [flows.network](https://flows.network/), a serverless platform that makes deploying your own app quick and easy in just three steps.
+This scheduled bot uses ChatGPT to summarize Hacker News posts. At the specified time, the bot searches for posts from the past hour, filters them based on your chosen keyword, and sends you a Telegram message with a summary.
 
-### Fork this repo
 
-Fork [this repo](https://github.com/flows-network/hackernews-alert/) and go to flows.network to deploy your function. 
+## Deploy
 
-### Deploy the code on flow.network
+1. Create a bot from the template
+2. Add your OpenAI API key
+3. Configure the Telegram bot to send direct messages (personal chat ID) or group message
 
-1. Sign up for an account for deploying flows on [flows.network](https://flows.network/). It's free.
-2. Click on the "Create a Flow" button to start deploying this APP
-3. Authenticate the [flows.network](https://flows.network/) to access the `hackernews-alert` repo you just forked. 
-![image](https://user-images.githubusercontent.com/45785633/227176033-35a445d8-9e73-4d6d-a919-c68d64cc4075.png)
+### 0 Prerequisites
 
-4. Click on the Advanced text and you will see more settings. Fill in the required Environment Variables. In this example, we have three variables. One is `KEYWORD`: fill in one topic you want to listen to, like `ChatGPT`. The other two variables: `WORKSPACE` and `CHANNEL`: fill in your own workspace and channel
+* You will need to bring your own [OpenAI API key](https://openai.com/blog/openai-api). If you do not already have one, [sign up here](https://platform.openai.com/signup).
 
-![image](https://user-images.githubusercontent.com/45785633/227176580-b7e8d31d-b871-45b4-baee-312572615e8a.png)
+* Sign up on [flows.network](https://flows.network/) using your GitHub account. It is free.
 
-5. At last, click the Deploy button to deploy your function.
+### 1 Create a bot from a template
 
-### Configure SaaS integrations
+Go to [the Hacker News Alert ChatGPT Telegram template](https://flows.network/flow/createByTemplate/hacker-news-chatgpt-telegram).
 
-After that, the flows.network will direct you to configure the SaaS integration required by your flow.
 
-![image](https://user-images.githubusercontent.com/45785633/227176699-a1ce1c05-02b9-411a-890f-ece033fde38e.png)
+<img width="658" alt="image" src="https://github.com/flows-network/hacker-news-alert-chatgpt-telegram/assets/45785633/8d5e9862-5bce-40ce-b1a2-07f53df2d525">
 
-Here we can see, we need to configue one SaaS integration.
 
-Click the "Connect/+ Add new authentication" button to authenticate your Slack account. You'll be redirected to a new page where you must grant [flows.network](https://flows.network/) permission to install the `flows-network` bot on your workspace. This workspace is the one you entered into the environment variables above.
+Review the `KEYWORD` variable to specify your keyword of interest (supporting only one keyword for each bot).
 
-> If you have authenticated the workspace before,you can see the purple Connect button turns gray Connected button. Just ingore this step and click Check button.
+Click on the **Create and Build** button.
 
-After that, click the Check button to see your flow details. As soon as the flow function's status becomes `ready` and the flow's status became `running`, the Hackernews alert App goes live. You will get a salck message at the 50th minute of every hour !
+### 2 Add your OpenAI API key
 
-![image](https://user-images.githubusercontent.com/45785633/227177456-a51eacda-2f09-4206-874b-4dc73c3408d8.png)
+Set up the OpenAI integration. Click on **Connect**, and enter your key. The default key name is `Default`.
 
-> [flows.network](https://flows.network/) is still in its early stages. We would love to hear your feedback!
+[<img width="450" alt="image" src="https://user-images.githubusercontent.com/45785633/222973214-ecd052dc-72c2-4711-90ec-db1ec9d5f24e.png">](https://user-images.githubusercontent.com/45785633/222973214-ecd052dc-72c2-4711-90ec-db1ec9d5f24e.png)
+
+Close the tab and go back to the flow.network page once you are done. Finally, click **Deploy**.
+
+###  Configure the Telegram bot to send direct messages (personal chat ID) or group message
+
+Set up the Telegram integration. You will need to
+
+1. Add your Telegram API token, which you can get from @botfather
+2. Add your Telegram Chat ID. The chat ID you use depends on whether you want the bot to send direct messages or group messages. Click [here](https://flows.network/blog/how-to-find-telegram-chat-id) to learn more about finding your Telegram chat ID.
+
+<img width="658" alt="image" src="https://github.com/flows-network/hacker-news-alert-chatgpt-telegram/assets/45785633/1b6fcb91-4485-4270-bdc3-e4549d929ac5">
+
+Finally, click **Deploy**.
+
+## Wait for the magic!
+
+You are now on the flow details page and the flow function takes a few seconds to build. Once the flow's status changes to `running`, your bot is ready to summarize Hacker News posts.
+
+## FAQ
+
+### How to customize the bot's scheduled messaging time?
+
+To customize the time when the bot sends Discord messages, you can modify the value in the cron expression ("30 * * * *"). This expression means the bot sends messages at the 30th minute of every hour.
+
+```
+    schedule_cron_job(String::from("30 * * * *"), keyword, callback).await;
+```
+
+To adjust the timing, you can change the number 30 to your desired minute. For example, if you want the messages to be sent at the 15th minute of every hour, you can modify the expression to be ("15 * * * *").
+
+By customizing the cron expression, you can set the desired timing for the bot to send Discord messages.
+
+
+
+
+
 
 
